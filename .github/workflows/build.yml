@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dosyalari proje yapisina diz
+        run: |
+          for f in settings.gradle.kts build.gradle.kts gradle.properties app.build.gradle.kts AndroidManifest.xml strings.xml MainActivity.kt ApkBuilder.kt ResPatcher.kt signing.p12; do
+            if [ ! -f "$f" ]; then echo "EKSIK DOSYA: $f"; exit 1; fi
+          done
+          mkdir -p app/src/main/java/com/htmltoapk/studio app/src/main/res/values app/src/main/assets
+          mv app.build.gradle.kts app/build.gradle.kts
+          mv AndroidManifest.xml app/src/main/
+          mv strings.xml app/src/main/res/values/
+          mv MainActivity.kt ApkBuilder.kt ResPatcher.kt app/src/main/java/com/htmltoapk/studio/
+          mv signing.p12 app/src/main/assets/
+          find . -path ./.git -prune -o -type f -print | sort
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Html2Apk-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
